@@ -997,7 +997,7 @@ module.exports = DynamicP;
  */
 
 function DynamicP(opts) {
-  this.pollInterval = opts.pingInterval || 5000;
+  this.pollInterval = opts.pingInterval;
   this.currentPollInterval = 100;
   XHR.call(this, opts);
 }

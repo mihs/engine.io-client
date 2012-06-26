@@ -1078,12 +1078,9 @@ DynamicP.prototype.onPacket = function (packet) {
  * Clear the timer when closing.
  */
 
-DynamicP.prototype.doClose = function () {
-  if (this.readyState === 'closed') {
-    return;
-  }
+DynamicP.prototype.onClose = function () {
   clearTimeout(this.pollTimer);
-  XHR.prototype.doClose.call(this);
+  XHR.prototype.onClose.call(this);
 };
 
 });require.register("transports/flashsocket.js", function(module, exports, require, global){
@@ -2254,7 +2251,7 @@ Socket.prototype.setPingTimeout = function () {
   var self = this;
   this.pingTimeoutTimer = setTimeout(function () {
     self.onClose('ping timeout');
-    self.transport.close();
+    self.transport.onClose();
   }, this.pingTimeout);
 };
 

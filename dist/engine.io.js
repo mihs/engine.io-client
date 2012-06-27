@@ -999,6 +999,7 @@ module.exports = DynamicP;
 function DynamicP(opts) {
   this.pollInterval = opts.pingInterval;
   this.currentPollInterval = 100;
+  this.pollScheduled = false;
   XHR.call(this, opts);
 }
 
@@ -1019,20 +1020,21 @@ DynamicP.prototype.name = "dynamicpolling";
  */
 
 DynamicP.prototype.poll = function () {
-  if (this.polling) {
+  if (this.pollScheduled) {
     return;
   }
 
-  var self = this;
   clearTimeout(this.pollTimer);
+  var self = this;
   this.pollTimer = setTimeout(function(){
-    self.pollTimer = null;
+    self.pollScheduled = false;
     self.currentPollInterval = self.currentPollInterval * 2;
     if (self.currentPollInterval > self.pollInterval) {
       self.currentPollInterval = self.pollInterval;
     }
     XHR.prototype.poll.call(self);
   }, this.currentPollInterval);
+  this.pollScheduled = true;
 };
 
 /**
@@ -1040,7 +1042,7 @@ DynamicP.prototype.poll = function () {
  */
 
 DynamicP.prototype.write = function (packets) {
-  this.onlyPong = (packets.length === 1 && packets[0].type === 'pong');
+  this.onlyPong = (packets.length === 1 && 'pong' === packets[0].type);
   XHR.prototype.write.call(this, packets);
 };
 
@@ -1053,9 +1055,12 @@ DynamicP.prototype.doWrite = function (data, fn) {
 
   function cb() {
     fn();
-    if (!self.onlyPong && self.readyState !== 'closed') {
-      self.currentPollInterval = 100;
-      delete self.onlyPong;
+    if (self.onlyPong || 'closed' === self.readyState) {
+      return;
+    }
+    self.currentPollInterval = 100;
+    if (!self.polling) {
+      self.pollScheduled = false;
       self.poll();
     }
   }
@@ -1080,7 +1085,14 @@ DynamicP.prototype.onPacket = function (packet) {
 
 DynamicP.prototype.onClose = function () {
   clearTimeout(this.pollTimer);
+  this.pollScheduled = false;
   XHR.prototype.onClose.call(this);
+};
+
+DynamicP.prototype.doClose = function () {
+  if ('open' == this.readyState) {
+    XHR.prototype.doClose.call(this);
+  }
 };
 
 });require.register("transports/flashsocket.js", function(module, exports, require, global){

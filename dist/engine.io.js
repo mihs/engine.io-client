@@ -997,7 +997,7 @@ module.exports = DynamicP;
  */
 
 function DynamicP(opts) {
-  this.pollInterval = opts.pingInterval;
+  this.pollInterval = 5000;
   this.currentPollInterval = 100;
   this.pollScheduled = false;
   XHR.call(this, opts);
@@ -2056,7 +2056,6 @@ Socket.prototype.createTransport = function (name) {
     , forceJSONP: this.forceJSONP
     , flashPath: this.flashPath
     , policyPort: this.policyPort
-    , pingInterval: this.pingInterval
   });
 
   return transport;
@@ -2247,7 +2246,6 @@ Socket.prototype.onHandshake = function (data) {
   this.transport.query.sid = data.sid;
   this.upgrades = data.upgrades;
   this.pingTimeout = data.pingTimeout;
-  this.pingInterval = data.pingInterval;
   this.onOpen();
   this.setPingTimeout();
 };

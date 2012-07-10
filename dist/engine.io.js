@@ -16,6 +16,7 @@ var packets = exports.packets = {
   , pong:     3
   , message:  4
   , upgrade:  5
+  , noop:     6
 };
 
 var packetslist = util.keys(packets);
@@ -1160,6 +1161,10 @@ FlashWS.prototype.doOpen = function () {
   WEB_SOCKET_SUPPRESS_CROSS_DOMAIN_SWF_ERROR = true;
   WEB_SOCKET_DISABLE_AUTO_INITIALIZATION = true;
 
+  if ('undefined' == typeof WEB_SOCKET_SWF_LOCATION) {
+    WEB_SOCKET_SWF_LOCATION = this.flashPath + 'WebSocketMainInsecure.swf';
+  }
+
   // dependencies
   var deps = [this.flashPath + 'web_socket.js'];
 
@@ -1171,9 +1176,9 @@ FlashWS.prototype.doOpen = function () {
 
   load(deps, function () {
     self.ready(function () {
-        WebSocket.__addTask(function () {
-          WS.prototype.doOpen.call(self);
-        });
+      WebSocket.__addTask(function () {
+        WS.prototype.doOpen.call(self);
+      });
     });
   });
 };
@@ -1192,12 +1197,24 @@ FlashWS.prototype.doClose = function () {
   });
 };
 
+/**
+ * Writes to the Flash socket.
+ *
+ * @api private
+ */
+
 FlashWS.prototype.write = function() {
   var self = this, args = arguments;
   WebSocket.__addTask(function () {
     WS.prototype.write.apply(self, args);
   });
 };
+
+/**
+ * Called upon dependencies are loaded.
+ *
+ * @api private
+ */
 
 FlashWS.prototype.ready = function (fn) {
   if (typeof WebSocket == 'undefined'
@@ -1211,12 +1228,10 @@ FlashWS.prototype.ready = function (fn) {
   }
 
   function init () {
-
     // Only start downloading the swf file when the checked that this browser
     // actually supports it
     if (!FlashWS.loaded) {
-
-      if (self.policyPort !== 843) {
+      if (843 != self.policyPort) {
         WebSocket.loadFlashPolicyFile('xmlsocket://' + self.host + ':' + self.policyPort);
       }
 
@@ -1228,7 +1243,9 @@ FlashWS.prototype.ready = function (fn) {
   }
 
   var self = this;
-  if (document.body) return init();
+  if (document.body) {
+    return init();
+  }
 
   util.load(init);
 };
@@ -1245,8 +1262,9 @@ FlashWS.prototype.check = function () {
 
 
 
-  if (typeof WebSocket != 'undefined' && !('__initialize' in WebSocket))
+  if (typeof WebSocket != 'undefined' && !('__initialize' in WebSocket)) {
     return false;
+  }
 
   if (window.ActiveXObject) {
     var control = null;
@@ -1256,11 +1274,12 @@ FlashWS.prototype.check = function () {
     if (control) {
       return true;
     }
-  }
-  else {
+  } else {
     for (var i = 0, l = navigator.plugins.length; i < l; i++) {
       for (var j = 0, m = navigator.plugins[i].length; j < m; j++) {
-        if (navigator.plugins[i][j].description == 'Shockwave Flash') return true;
+        if (navigator.plugins[i][j].description == 'Shockwave Flash') {
+          return true;
+        }
       }
     }
   }
@@ -2020,7 +2039,7 @@ function Socket (opts) {
   this.transports = opts.transports || ['polling', 'websocket', 'flashsocket'];
   this.readyState = '';
   this.writeBuffer = [];
-  this.policyPort = opts.policyPort;
+  this.policyPort = opts.policyPort || 843;
   this.open();
 };
 
@@ -2225,7 +2244,11 @@ Socket.prototype.onPacket = function (packet) {
 
       case 'message':
         this.emit('message', packet.data);
-        this.onmessage && this.onmessage.call(this, { data: packet.data });
+        var event = { data: packet.data };
+        event.toString = function () {
+          return packet.data;
+        }
+        this.onmessage && this.onmessage.call(this, event);
         break;
     }
   } else {
